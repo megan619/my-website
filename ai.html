@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Tic Tac Toe Pro+</title>
+
+<style>
+body {
+    font-family: 'Segoe UI', sans-serif;
+    background: linear-gradient(135deg, #1e1e2f, #2c2c54);
+    color: white;
+    text-align: center;
+}
+
+h1 { margin-top: 20px; }
+
+#setup {
+    margin-top: 20px;
+}
+
+input, select {
+    padding: 8px;
+    margin: 5px;
+    border-radius: 6px;
+    border: none;
+}
+
+.avatar {
+    font-size: 30px;
+    cursor: pointer;
+    margin: 5px;
+}
+
+.avatar.selected {
+    outline: 2px solid #00cec9;
+    border-radius: 8px;
+}
+
+button {
+    padding: 10px 20px;
+    margin: 10px;
+    border: none;
+    border-radius: 8px;
+    background: #6c5ce7;
+    color: white;
+    cursor: pointer;
+}
+
+#scoreboard {
+    margin-top: 15px;
+    font-size: 18px;
+}
+
+#board {
+    display: grid;
+    grid-template-columns: repeat(3, 110px);
+    gap: 10px;
+    justify-content: center;
+    margin-top: 30px;
+}
+
+.cell {
+    width: 110px;
+    height: 110px;
+    background: #2d3436;
+    border-radius: 15px;
+    font-size: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.cell:hover { background: #636e72; }
+
+.win { background: #00b894 !important; }
+
+#status { margin-top: 15px; font-size: 20px; }
+</style>
+</head>
+
+<body>
+
+<h1>Tic Tac Toe Pro+</h1>
+
+<div id="setup">
+    <input id="nameInput" placeholder="Enter your name">
+
+    <div>
+        <span class="avatar" onclick="selectAvatar(this)">😀</span>
+        <span class="avatar" onclick="selectAvatar(this)">😎</span>
+        <span class="avatar" onclick="selectAvatar(this)">🐱</span>
+        <span class="avatar" onclick="selectAvatar(this)">🔥</span>
+    </div>
+
+    <select id="difficulty">
+        <option value="easy">Easy</option>
+        <option value="medium">Medium</option>
+        <option value="hard">Hard</option>
+    </select>
+
+    <br>
+    <button onclick="startGame('X')">Play as X</button>
+    <button onclick="startGame('O')">Play as O</button>
+</div>
+
+<div id="scoreboard"></div>
+<div id="board"></div>
+<div id="status"></div>
+
+<button onclick="resetGame()">Restart Round</button>
+<button onclick="goHome()">Home</button>
+
+<script>
+let board = ["","","","","","","","",""];
+let player = "", computer = "";
+let playerName = "You";
+let avatar = "😀";
+let difficulty = "easy";
+
+let scores = { player: 0, computer: 0 };
+let gameActive = false;
+
+function selectAvatar(el) {
+    document.querySelectorAll(".avatar").forEach(a=>a.classList.remove("selected"));
+    el.classList.add("selected");
+    avatar = el.textContent;
+}
+
+function startGame(choice) {
+    player = choice;
+    computer = choice === "X" ? "O" : "X";
+    difficulty = document.getElementById("difficulty").value;
+
+    playerName = document.getElementById("nameInput").value || "You";
+
+    document.getElementById("setup").style.display = "none";
+    gameActive = true;
+
+    updateScoreboard();
+    createBoard();
+
+    if (computer === "X") computerMove();
+}
+
+function updateScoreboard() {
+    document.getElementById("scoreboard").innerHTML =
+        `${avatar} ${playerName}: ${scores.player} | 🤖 Computer: ${scores.computer}`;
+}
+
+function createBoard() {
+    const boardEl = document.getElementById("board");
+    boardEl.innerHTML = "";
+    board = ["","","","","","","","",""];
+
+    for (let i = 0; i < 9; i++) {
+        const cell = document.createElement("div");
+        cell.className = "cell";
+        cell.dataset.index = i;
+        cell.onclick = handleClick;
+        boardEl.appendChild(cell);
+    }
+}
+
+function handleClick(e) {
+    let i = e.target.dataset.index;
+    if (board[i] || !gameActive) return;
+
+    move(i, player);
+    if (checkEnd(player)) return;
+
+    setTimeout(computerMove, 400);
+}
+
+function move(i, who) {
+    board[i] = who;
+    document.querySelector(`[data-index='${i}']`).textContent = who;
+}
+
+function computerMove() {
+    let moveIndex;
+
+    if (difficulty === "easy") {
+        moveIndex = randomMove();
+    } else if (difficulty === "medium") {
+        moveIndex = Math.random() < 0.5 ? bestMove() : randomMove();
+    } else {
+        moveIndex = bestMove();
+    }
+
+    move(moveIndex, computer);
+    checkEnd(computer);
+}
+
+function randomMove() {
+    let empty = board.map((v,i)=>v===""?i:null).filter(v=>v!==null);
+    return empty[Math.floor(Math.random()*empty.length)];
+}
+
+function bestMove() {
+    let bestScore = -Infinity;
+    let move;
+
+    for (let i=0;i<9;i++) {
+        if (board[i] === "") {
+            board[i] = computer;
+            let score = minimax(board, 0, false);
+            board[i] = "";
+            if (score > bestScore) {
+                bestScore = score;
+                move = i;
+            }
+        }
+    }
+    return move;
+}
+
+function minimax(newBoard, depth, isMax) {
+    let result = checkWinner();
+    if (result !== null) {
+        return result === computer ? 10 - depth :
+               result === player ? depth - 10 : 0;
+    }
+
+    if (isMax) {
+        let best = -Infinity;
+        for (let i=0;i<9;i++) {
+            if (newBoard[i] === "") {
+                newBoard[i] = computer;
+                best = Math.max(best, minimax(newBoard, depth+1, false));
+                newBoard[i] = "";
+            }
+        }
+        return best;
+    } else {
+        let best = Infinity;
+        for (let i=0;i<9;i++) {
+            if (newBoard[i] === "") {
+                newBoard[i] = player;
+                best = Math.min(best, minimax(newBoard, depth+1, true));
+                newBoard[i] = "";
+            }
+        }
+        return best;
+    }
+}
+
+function checkWinner() {
+    const wins = [
+        [0,1,2],[3,4,5],[6,7,8],
+        [0,3,6],[1,4,7],[2,5,8],
+        [0,4,8],[2,4,6]
+    ];
+
+    for (let [a,b,c] of wins) {
+        if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+            return board[a];
+        }
+    }
+
+    if (board.every(c=>c!=="")) return "draw";
+    return null;
+}
+
+function checkEnd(current) {
+    let result = checkWinner();
+
+    if (result === null) return false;
+
+    gameActive = false;
+
+    if (result === player) {
+        document.getElementById("status").textContent = playerName + " wins!";
+        scores.player++;
+    } else if (result === computer) {
+        document.getElementById("status").textContent = "Computer wins!";
+        scores.computer++;
+    } else {
+        document.getElementById("status").textContent = "Draw!";
+    }
+
+    updateScoreboard();
+    return true;
+}
+
+function resetGame() {
+    createBoard();
+    document.getElementById("status").textContent = "";
+    gameActive = true;
+
+    if (computer === "X") computerMove();
+}
+function goHome() {
+    // Reset game state
+    gameActive = false;
+    board = ["","","","","","","","",""];
+
+    // Clear UI
+    document.getElementById("board").innerHTML = "";
+    document.getElementById("status").textContent = "";
+
+    // Show setup screen again
+    document.getElementById("setup").style.display = "block";
+}
+</script>
+
+</body>
+</html>
